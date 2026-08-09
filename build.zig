@@ -29,6 +29,11 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(executable);
 
     const run_exec = b.addRunArtifact(executable);
+
+    if (b.args) |args| {
+        run_exec.addArgs(args);
+    }
+
     const run_step = b.step("run", "Run the Wren cli");
     run_step.dependOn(&run_exec.step);
 }
