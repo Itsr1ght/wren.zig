@@ -23,7 +23,6 @@ pub fn build(b: *std.Build) void {
         .name = "wren-cli",
         .root_module = wren_cli,
         .use_llvm = true,
-        .linkage = .static,
     });
 
     b.installArtifact(executable);
