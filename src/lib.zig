@@ -38,24 +38,36 @@ pub const Type = enum {
 };
 
 pub const Configuration = struct {
-    realAllocFn: null,
-    resolveModuleFn: null,
-    loadModuleFn: null,
-    bindForeignMethodFn: null,
-    bindForeignClassFn: null,
-    WriteFn: null,
-    ErrorFn: null,
-    initialHeapSize: usize,
-    minHeapSize: usize,
-    heapGrowthPercent: u32,
-    userData: ?*anyopaque,
+    realAllocFn: i32 = 0,
+    resolveModuleFn: i32 = 0,
+    loadModuleFn: i32 = 0,
+    bindForeignMethodFn: i32 = 0,
+    bindForeignClassFn: i32 = 0,
+    WriteFn: i32 = 0,
+    ErrorFn: i32 = 0,
+    initialHeapSize: usize = 0,
+    minHeapSize: usize = 0,
+    heapGrowthPercent: u32 = 0,
+    userData: ?*anyopaque = null,
 };
 
 pub const ModuleResult = struct {
     source: []const u8,
     onComplete: null,
-    userData: ?*anyopaque,
+    userData: ?*anyopaque = null,
 };
+
+const WrenHandle = struct {};
+
+pub fn getVersionNumber() i32 {
+    return VERSION_NUMBER;
+}
+
+pub fn initConfiguration(configuration: *Configuration) void {
+    _ = configuration;
+}
+
+pub const newVm = WrenVM.init;
 
 pub const WrenVM = struct {
     pub fn init(configuration: *Configuration) WrenVM {
@@ -146,15 +158,3 @@ pub const WrenVM = struct {
         _ = self;
     }
 };
-
-const WrenHandle = struct {};
-
-pub fn getVersionNumber() i32 {
-    return VERSION_NUMBER;
-}
-
-pub fn initConfiguration(configuration: *Configuration) void {
-    _ = configuration;
-}
-
-pub const newVm = WrenVM.init;

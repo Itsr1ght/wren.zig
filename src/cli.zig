@@ -2,7 +2,8 @@ const std = @import("std");
 const wren = @import("wren");
 
 pub fn main(init: std.process.Init) !void {
-    wren.initConfiguration(.{});
+    var configuration: wren.Configuration = .{};
+    wren.initConfiguration(&configuration);
 
     const args = try init.minimal.args.toSlice(init.gpa);
     defer init.gpa.free(args);
