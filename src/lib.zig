@@ -37,21 +37,45 @@ pub const Type = enum {
     string,
 };
 
+const WrenForeignMethodFn = *const fn (vm: *WrenVM) void;
+const WrenFinalizerFn = *const fn (data: *anyopaque) void;
+
+const WrenForeignClassMethods = struct {
+    allocate: WrenForeignMethodFn,
+    finalize: WrenFinalizerFn,
+};
+
 pub const Configuration = struct {
-    realAllocFn: i32 = 0,
-    resolveModuleFn: i32 = 0,
-    loadModuleFn: i32 = 0,
-    bindForeignMethodFn: i32 = 0,
-    bindForeignClassFn: i32 = 0,
-    WriteFn: i32 = 0,
-    ErrorFn: i32 = 0,
-    initialHeapSize: usize = 0,
-    minHeapSize: usize = 0,
-    heapGrowthPercent: u32 = 0,
+    realAllocFn: ?*const fn (memory: *anyopaque, new_size: usize, user_data: *anyopaque) ?*anyopaque = null,
+    resolveModuleFn: ?*const fn (vm: *WrenVM, importer: []const u8, name: []const u8) []const u8 = null,
+    loadModuleFn: ?*const fn (vm: *WrenVM, name: []const u8) LoadModuleResult = null,
+    bindForeignMethodFn: ?*const fn (
+        vm: *WrenVM,
+        module: []const u8,
+        className: []const u8,
+        is_static: bool,
+        signature: []const u8,
+    ) WrenForeignMethodFn = null,
+    bindForeignClassFn: ?*const fn (
+        vm: *WrenVM,
+        module: []const u8,
+        className: []const u8,
+    ) WrenForeignClassMethods = null,
+    WriteFn: ?*const fn (vm: *WrenVM, text: []const u8) void = null,
+    ErrorFn: ?*const fn (
+        vm: *WrenVM,
+        type: ErrorType,
+        module: []const u8,
+        line: i32,
+        message: []const u8,
+    ) void = null,
+    initialHeapSize: usize = 1024 * 1024 * 10,
+    minHeapSize: usize = 1024 * 1024,
+    heapGrowthPercent: u32 = 50,
     userData: ?*anyopaque = null,
 };
 
-pub const ModuleResult = struct {
+pub const LoadModuleResult = struct {
     source: []const u8,
     onComplete: null,
     userData: ?*anyopaque = null,
