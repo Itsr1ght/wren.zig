@@ -20,7 +20,7 @@ pub const ObjType = enum {
 
 pub const Obj = struct {
     type: ObjType,
-    isDark: bool,
+    is_dark: bool,
 };
 
 pub const ObjModule = struct {
@@ -42,7 +42,7 @@ pub const Value = union(enum) {
 
 pub const FnDebug = struct {
     name: []const u8,
-    source_lines: std.ArrayList(i32),
+    source_lines: std.ArrayList(i32) = .empty,
 };
 
 pub const MethodType = enum {
@@ -55,8 +55,8 @@ pub const MethodType = enum {
 
 pub const ObjFn = struct {
     obj: Obj,
-    code: std.ArrayList(u8),
-    constants: std.ArrayList(Value),
+    code: std.ArrayList(u8) = .empty,
+    constants: std.ArrayList(Value) = .empty,
     module: ObjModule,
     max_slots: i32,
     num_up_values: i32,
@@ -74,7 +74,7 @@ pub const ObjUpValue = struct {
 pub const ObjClosure = struct {
     obj: Obj,
     @"fn": ObjFn,
-    ObjUpValue: []ObjUpValue,
+    Obj_up_value: []ObjUpValue,
 };
 
 const Primitive = struct {};

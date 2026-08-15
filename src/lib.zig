@@ -1,4 +1,6 @@
 const std = @import("std");
+const Value = @import("vm/wren_value.zig").Value;
+const WrenHandle = @import("vm/wren_core.zig").WrenHandle;
 
 pub const VERSION_MAJOR = 0;
 pub const VERSION_MINOR = 4;
@@ -14,6 +16,8 @@ pub const VERSION_NUMBER: comptime_int =
     VERSION_MAJOR * 1_000_000 +
     VERSION_MINOR * 1_000 +
     VERSION_PATCH;
+
+const WrenForeignMethodFn = *const fn (vm: *WrenVM) void;
 
 pub const InterpretResult = enum {
     success,
@@ -37,12 +41,9 @@ pub const Type = enum {
     string,
 };
 
-const WrenForeignMethodFn = *const fn (vm: *WrenVM) void;
-const WrenFinalizerFn = *const fn (data: *anyopaque) void;
-
 const WrenForeignClassMethods = struct {
     allocate: WrenForeignMethodFn,
-    finalize: WrenFinalizerFn,
+    finalize: *const fn (data: *anyopaque) void,
 };
 
 pub const Configuration = struct {
@@ -72,7 +73,13 @@ pub const Configuration = struct {
     initialHeapSize: usize = 1024 * 1024 * 10,
     minHeapSize: usize = 1024 * 1024,
     heapGrowthPercent: u32 = 50,
-    userData: ?*anyopaque = null,
+    user_data: ?*anyopaque = null,
+
+    pub fn init(user_data: ?*anyopaque) Configuration {
+        return .{
+            .user_data = user_data,
+        };
+    }
 };
 
 pub const LoadModuleResult = struct {
@@ -80,8 +87,6 @@ pub const LoadModuleResult = struct {
     onComplete: null,
     userData: ?*anyopaque = null,
 };
-
-const WrenHandle = struct {};
 
 pub fn getVersionNumber() i32 {
     return VERSION_NUMBER;
@@ -94,9 +99,12 @@ pub fn initConfiguration(configuration: *Configuration) void {
 pub const newVm = WrenVM.init;
 
 pub const WrenVM = struct {
+    configuration: *Configuration,
+
     pub fn init(configuration: *Configuration) WrenVM {
-        _ = configuration;
-        return .{};
+        return .{
+            .configuration = configuration,
+        };
     }
 
     pub fn collectGarbage(self: *WrenVM) void {

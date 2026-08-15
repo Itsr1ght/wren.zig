@@ -2,15 +2,12 @@ const std = @import("std");
 const wren = @import("wren");
 
 pub fn main(init: std.process.Init) !void {
+    _ = init;
     var configuration: wren.Configuration = .{};
     wren.initConfiguration(&configuration);
 
-    const args = try init.minimal.args.toSlice(init.gpa);
-    defer init.gpa.free(args);
+    var wm = wren.newVm(&configuration);
+    wm.deinit();
 
-    for (args[1..]) |arg| {
-        std.debug.print("{s}\n", .{arg});
-    }
-
-    std.debug.print("{d}\n", .{wren.getVersionNumber()});
+    std.debug.print("{s}\n", .{wren.VERSION_STRING});
 }
