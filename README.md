@@ -23,5 +23,5 @@ exe.root_module.addImport("wren", wren_package.module("wren"));
 Run the command with below for running the example script
 
 ```bash
-zig build run -- examples/hello.wren
+zig build run -- examples/wren/hello.wren
 ```
