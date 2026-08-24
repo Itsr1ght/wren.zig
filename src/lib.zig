@@ -1,6 +1,8 @@
 const std = @import("std");
 const Value = @import("vm/wren_value.zig").Value;
 const WrenHandle = @import("vm/wren_core.zig").WrenHandle;
+const ObjClass = @import("vm/wren_value.zig").ObjClass;
+const SymbolTable = @import("vm/wren_function.zig").SymbolTable;
 
 pub const VERSION_MAJOR = 0;
 pub const VERSION_MINOR = 4;
@@ -100,9 +102,14 @@ pub const newVm = WrenVM.init;
 
 pub const WrenVM = struct {
     configuration: *Configuration,
+    allocator: std.mem.Allocator,
 
-    pub fn init(configuration: *Configuration) WrenVM {
+    bool_class: *ObjClass,
+    method_names: SymbolTable,
+
+    pub fn init(allocator: std.mem.Allocator, configuration: *Configuration) WrenVM {
         return .{
+            .allocator = allocator,
             .configuration = configuration,
         };
     }

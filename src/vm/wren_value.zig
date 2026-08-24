@@ -2,6 +2,11 @@ const std = @import("std");
 const primitive = @import("wren_primitive.zig");
 const function = @import("wren_function.zig");
 const foriegn = @import("wren_foreign.zig");
+const utils = @import("wren_utils.zig");
+
+const WrenVM = @import("../lib.zig").WrenVM;
+
+const SymbolTable = @import("wren_function.zig").SymbolTable;
 
 pub const ObjType = enum {
     class,
@@ -25,12 +30,18 @@ pub const Obj = struct {
 
 pub const ObjModule = struct {
     obj: Obj,
+    variables: std.ArrayList(Value),
+    variable_names: SymbolTable,
+    name: []const u8,
 };
 
 pub const ObjClass = struct {
     obj: Obj,
     superclass: ObjClass,
     num_field: i32,
+    methods: std.ArrayList(Method) = .empty,
+    name: []const u8,
+    attribute: Value,
 };
 
 pub const Value = union(enum) {
@@ -77,8 +88,6 @@ pub const ObjClosure = struct {
     Obj_up_value: []ObjUpValue,
 };
 
-const Primitive = struct {};
-
 pub const Method = struct {
     type: MethodType,
     implementation: Implementation,
@@ -90,3 +99,10 @@ pub const Method = struct {
         none: void,
     };
 };
+
+pub fn bindMethod(allocator: *std.mem.Allocator, obj_class: *ObjClass, symbol: i32, method: Method) !void {
+    if (symbol >= obj_class.methods.items.len) {
+        utils.methodBufferFill(allocator, &obj_class.methods, symbol);
+    }
+    obj_class.methods.items[symbol] = method;
+}
