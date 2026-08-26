@@ -9,14 +9,25 @@ pub fn symbolTableFind(allocator: *std.mem.Allocator, symbols: *SymbolTable, nam
 }
 
 pub fn symbolTableAdd(vm: *WrenVM, symbols: *SymbolTable, name: []const u8, length: usize) i32 {
-    _ = vm;
-    _ = symbols;
-    _ = name;
-    _ = length;
+    const actual_name = name[0..length];
+    for (symbols.names.items, 0..) |symbol, i| {
+        if (std.mem.eql(u8, symbol, actual_name)) {
+            return @intCast(i);
+        }
+    }
+
+    const owned_name = vm.allocator.dupe(u8, actual_name){return -1};
+
+    symbols.names.append(vm.allocator, owned_name) catch {
+        return -1;
+    };
+
+    symbols.symbols[symbols.names.items.len] = owned_name;
+
+    return @intCast(symbols.names.items.len - 1);
 }
 
-pub fn symbolTableEnsure(vm: *WrenVM, symbols: *SymbolTable, name: []const u8, length: usize) i32 {
-    _ = length;
+pub fn symbolTableEnsure(vm: *WrenVM, symbols: *SymbolTable, name: []const u8) i32 {
     const existing = symbolTableFind(&vm.allocator, symbols, name);
     if (existing) |exist| {
         return exist;

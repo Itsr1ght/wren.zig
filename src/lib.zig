@@ -49,9 +49,23 @@ const WrenForeignClassMethods = struct {
 };
 
 pub const Configuration = struct {
-    realAllocFn: ?*const fn (memory: *anyopaque, new_size: usize, user_data: *anyopaque) ?*anyopaque = null,
-    resolveModuleFn: ?*const fn (vm: *WrenVM, importer: []const u8, name: []const u8) []const u8 = null,
-    loadModuleFn: ?*const fn (vm: *WrenVM, name: []const u8) LoadModuleResult = null,
+    realAllocFn: ?*const fn (
+        memory: *anyopaque,
+        new_size: usize,
+        user_data: *anyopaque,
+    ) ?*anyopaque = null,
+
+    resolveModuleFn: ?*const fn (
+        vm: *WrenVM,
+        importer: []const u8,
+        name: []const u8,
+    ) []const u8 = null,
+
+    loadModuleFn: ?*const fn (
+        vm: *WrenVM,
+        name: []const u8,
+    ) LoadModuleResult = null,
+
     bindForeignMethodFn: ?*const fn (
         vm: *WrenVM,
         module: []const u8,
@@ -59,29 +73,30 @@ pub const Configuration = struct {
         is_static: bool,
         signature: []const u8,
     ) WrenForeignMethodFn = null,
+
     bindForeignClassFn: ?*const fn (
         vm: *WrenVM,
         module: []const u8,
         className: []const u8,
     ) WrenForeignClassMethods = null,
-    WriteFn: ?*const fn (vm: *WrenVM, text: []const u8) void = null,
-    ErrorFn: ?*const fn (
+
+    writeFn: ?*const fn (
+        vm: *WrenVM,
+        text: []const u8,
+    ) void = null,
+
+    errorFn: ?*const fn (
         vm: *WrenVM,
         type: ErrorType,
         module: []const u8,
         line: i32,
         message: []const u8,
     ) void = null,
-    initialHeapSize: usize = 1024 * 1024 * 10,
+
+    initialHeapSize: usize = 10 * 1024 * 1024,
     minHeapSize: usize = 1024 * 1024,
     heapGrowthPercent: u32 = 50,
     user_data: ?*anyopaque = null,
-
-    pub fn init(user_data: ?*anyopaque) Configuration {
-        return .{
-            .user_data = user_data,
-        };
-    }
 };
 
 pub const LoadModuleResult = struct {
@@ -94,8 +109,8 @@ pub fn getVersionNumber() i32 {
     return VERSION_NUMBER;
 }
 
-pub fn initConfiguration(configuration: *Configuration) void {
-    _ = configuration;
+pub fn initConfiguration() Configuration {
+    return Configuration{};
 }
 
 pub const newVm = WrenVM.init;

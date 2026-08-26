@@ -14,6 +14,8 @@ pub const SymbolTable = struct {
         const owned_name = try allocator.dupe(u8, name);
         try self.names.append(allocator, owned_name);
         try self.symbols.put(owned_name, symbol);
+
+        return symbol;
     }
 
     pub fn get(self: *const SymbolTable, symbol: Symbol) []const u8 {
