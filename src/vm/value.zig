@@ -9,7 +9,7 @@ pub const FnDebug = struct {
 
 pub const ValueType = enum {
     false,
-    null,
+    nil,
     num,
     true,
     undefined,
@@ -19,8 +19,10 @@ pub const ValueType = enum {
 pub const Value = struct {
     type: ValueType,
     as: union {
+        boolean: bool,
         num: f64,
         obj: Obj,
+        nil: void,
     },
 };
 
