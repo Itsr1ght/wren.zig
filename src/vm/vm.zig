@@ -11,4 +11,8 @@ pub const object = @import("object.zig");
 pub const string = @import("string.zig");
 pub const value = @import("value.zig");
 
+pub const lexer = @import("../compiler/lexer.zig");
+pub const parser = @import("../compiler/parser.zig");
+pub const symbol_table = @import("../compiler/symbol_table.zig");
+
 pub const WrenVM = struct {};
