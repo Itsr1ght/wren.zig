@@ -5,6 +5,10 @@ const Value = @import("value.zig").Value;
 const ObjString = @import("string.zig").ObjString;
 const SymbolTable = @import("../compiler/symbol_table.zig").SymbolTable;
 
+pub const LoadModuleResult = struct {
+    source: ?[]const u8 = null,
+};
+
 pub const ObjModule = struct {
     obj: Obj,
     variables: std.ArrayList(Value) = .empty,

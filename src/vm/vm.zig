@@ -17,16 +17,21 @@ pub const lexer = @import("../compiler/lexer.zig");
 pub const parser = @import("../compiler/parser.zig");
 pub const symbol_table = @import("../compiler/symbol_table.zig");
 
-pub const Configuration = struct {};
+const utils = @import("utils.zig");
+
+pub const Configuration = struct {
+    allocator: std.mem.Allocator,
+    write: *const fn (*WrenVM, []const u8) void = utils.defaultWriter,
+    resolve_module: ?*const fn (*WrenVM, []const u8) []const u8 = null,
+    load_module: ?*const fn (*WrenVM) module.LoadModuleResult = null,
+};
 
 pub const WrenVM = struct {
-    allocator: std.mem.Allocator,
     config: Configuration,
 
-    pub fn init(allocator: std.mem.Allocator, config: Configuration) !*WrenVM {
-        const vm = try allocator.create(WrenVM);
+    pub fn init(config: Configuration) !*WrenVM {
+        const vm = try config.allocator.create(WrenVM);
         vm.* = .{
-            .allocator = allocator,
             .config = config,
         };
         return vm;
@@ -45,13 +50,15 @@ pub const WrenVM = struct {
     }
 
     pub fn deinit(self: *WrenVM) void {
-        const allocator = self.allocator;
+        const allocator = self.config.allocator;
         allocator.destroy(self);
     }
 };
 
 test "Init VM" {
-    const vm = try WrenVM.init(std.testing.allocator, .{});
+    const vm = try WrenVM.init(.{
+        .allocator = std.testing.allocator,
+    });
     defer vm.deinit();
 
     try vm.compile("System.print(\"Hello World\")");
