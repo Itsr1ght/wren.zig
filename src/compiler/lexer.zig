@@ -283,12 +283,12 @@ pub const Lexer = struct {
             ',' => self.makeToken(.comma),
             '.' => {
                 if (self.match('.')) {
-                    if (self.makeToken('.')) {
-                        self.makeToken(.dotdotdot);
+                    if (self.match('.')) {
+                        return self.makeToken(.dotdotdot);
                     }
-                    self.makeToken(.dotdot);
+                    return self.makeToken(.dotdot);
                 }
-                self.makeToken(.dot);
+                return self.makeToken(.dot);
             },
             ':' => self.makeToken(.colon),
             ';' => self.makeToken(.semicolon),
