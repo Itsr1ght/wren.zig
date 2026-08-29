@@ -43,6 +43,8 @@ pub const WrenVM = struct {
         while (true) {
             const token = current_lexer.nextToken();
 
+            std.debug.print("{any} - {s}\n", .{ token.type, token.start });
+
             if (token.type == .eof) {
                 break;
             }

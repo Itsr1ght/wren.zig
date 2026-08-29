@@ -18,6 +18,8 @@ pub const lexer = vm.lexer;
 pub const parser = vm.parser;
 pub const symbol_table = vm.symbol_table;
 
+pub const WrenVM = vm.WrenVM;
+
 test {
     std.testing.refAllDecls(@This());
 }
