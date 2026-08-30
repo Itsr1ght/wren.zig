@@ -40,15 +40,8 @@ pub const WrenVM = struct {
     pub fn compile(self: *WrenVM, source: []const u8) !void {
         _ = self;
         var current_lexer = lexer.Lexer.init(source);
-        while (true) {
-            const token = current_lexer.nextToken();
-
-            std.debug.print("{any} - {s}\n", .{ token.type, token.start });
-
-            if (token.type == .eof) {
-                break;
-            }
-        }
+        const current_parser = parser.Parser.init(&current_lexer);
+        _ = current_parser;
     }
 
     pub fn deinit(self: *WrenVM) void {

@@ -344,3 +344,14 @@ test "Parse simple code (name)" {
         return std.testing.expect(false);
     }
 }
+
+test "Parse number" {
+    const code =
+        \\ 11 69.69 0011
+    ;
+    var lexer = Lexer.init(code);
+
+    try std.testing.expectEqualStrings("11", lexer.nextToken().start);
+    try std.testing.expectEqualStrings("69.69", lexer.nextToken().start);
+    try std.testing.expectEqualStrings("0011", lexer.nextToken().start);
+}
