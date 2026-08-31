@@ -62,7 +62,7 @@ pub const Parser = struct {
             .string => self.string(),
             .identifer => self.identifier(),
             .left_param => self.grouping(),
-            else => error.ExpectedExpression,
+            else => self.advance(),
         };
     }
 

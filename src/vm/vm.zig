@@ -29,6 +29,9 @@ pub const Configuration = struct {
 pub const WrenVM = struct {
     config: Configuration,
 
+    strings: std.ArrayList(*string.ObjString) = .empty,
+    modules: std.ArrayList(*module.ObjModule) = .empty,
+
     pub fn init(config: Configuration) !*WrenVM {
         const vm = try config.allocator.create(WrenVM);
         vm.* = .{
@@ -37,15 +40,46 @@ pub const WrenVM = struct {
         return vm;
     }
 
+    pub fn copyString(self: *WrenVM, data: []const u8) !*string.ObjString {
+        for (self.strings.items) |str| {
+            if (std.mem.eql(u8, data, str.char)) {
+                return str;
+            }
+        }
+
+        const obj_string = try string.ObjString.init(self.config.allocator, data);
+        try self.strings.append(self.config.allocator, obj_string);
+        return obj_string;
+    }
+
+    pub fn createModule(self: *WrenVM, name: []const u8) !*module.ObjModule {
+        const mod_name = try self.copyString(name);
+        const mod = try self.config.allocator.create(module.ObjModule);
+        mod.* = try .init(self.config.allocator, mod_name);
+        try self.modules.append(self.config.allocator, mod);
+        return mod;
+    }
+
     pub fn compile(self: *WrenVM, source: []const u8) !void {
         _ = self;
         var current_lexer = lexer.Lexer.init(source);
-        const current_parser = parser.Parser.init(&current_lexer);
-        _ = current_parser;
+        var current_parser = parser.Parser.init(&current_lexer);
+        try current_parser.parse();
     }
 
     pub fn deinit(self: *WrenVM) void {
         const allocator = self.config.allocator;
+        for (self.strings.items) |str| {
+            str.deinit(allocator);
+        }
+        self.strings.deinit(allocator);
+
+        for (self.modules.items) |mod| {
+            mod.deinit(allocator);
+            allocator.destroy(mod);
+        }
+        self.modules.deinit(allocator);
+
         allocator.destroy(self);
     }
 };
@@ -57,5 +91,15 @@ test "Init VM" {
     defer vm.deinit();
 
     try vm.compile("System.print(\"Hello World\")");
+    return std.testing.expect(true);
+}
+
+test "Create a Module" {
+    const vm = try WrenVM.init(.{
+        .allocator = std.testing.allocator,
+    });
+    defer vm.deinit();
+
+    _ = try vm.createModule("math");
     return std.testing.expect(true);
 }

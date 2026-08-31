@@ -17,5 +17,5 @@ pub const Obj = struct {
     type: ObjType,
     is_dark: bool,
 
-    next: *Obj,
+    next: ?*Obj = null,
 };
