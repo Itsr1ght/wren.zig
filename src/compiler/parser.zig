@@ -74,7 +74,7 @@ pub const Parser = struct {
 };
 
 test "Parser basic" {
-    var lexer = Lexer.init("1 66.66 69");
+    var lexer = Lexer.init("1 66.66 0xbeef");
     var parser = Parser.init(&lexer);
     try parser.parse();
 }

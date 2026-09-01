@@ -60,6 +60,21 @@ pub const WrenVM = struct {
         return mod;
     }
 
+    pub fn createClass(self: *WrenVM, name: *string.ObjString, superclass: ?*class.ObjClass) !*class.ObjClass {
+        const current_class = try self.config.allocator.create(class.ObjClass);
+        current_class.* = .{
+            .obj = .{
+                .type = .class,
+                .is_dark = false,
+            },
+            .superclass = superclass,
+            .methods = .empty,
+            .name = name,
+            .attributes = undefined,
+        };
+        return current_class;
+    }
+
     pub fn compile(self: *WrenVM, source: []const u8) !void {
         _ = self;
         var current_lexer = lexer.Lexer.init(source);
@@ -95,11 +110,17 @@ test "Init VM" {
 }
 
 test "Create a Module" {
-    const vm = try WrenVM.init(.{
-        .allocator = std.testing.allocator,
-    });
+    const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
     defer vm.deinit();
 
     _ = try vm.createModule("math");
+    return std.testing.expect(true);
+}
+
+test "Create a Class" {
+    const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
+    defer vm.deinit();
+
+    _ = try vm.createClass(try vm.copyString("Person"), null);
     return std.testing.expect(true);
 }

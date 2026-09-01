@@ -12,8 +12,10 @@ pub const LoadModuleResult = struct {
 
 pub const ObjModule = struct {
     obj: Obj,
+
     variables: std.ArrayList(Value) = .empty,
     variable_names: SymbolTable,
+
     name: *ObjString,
 
     pub fn init(allocator: std.mem.Allocator, name: *ObjString) !ObjModule {
