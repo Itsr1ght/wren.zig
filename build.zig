@@ -39,6 +39,7 @@ pub fn build(b: *std.Build) void {
 
     if (b.args) |args| {
         run_exec.addArgs(args);
+        run_test.addArgs(args);
     }
 
     const run_step = b.step("run", "Run the Wren cli");

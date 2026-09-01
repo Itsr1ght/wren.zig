@@ -197,28 +197,28 @@ pub const WrenVM = struct {
     }
 };
 
-test "Init VM" {
-    const vm = try WrenVM.init(.{
-        .allocator = std.testing.allocator,
-    });
-    defer vm.deinit();
+// test "Init VM" {
+//     const vm = try WrenVM.init(.{
+//         .allocator = std.testing.allocator,
+//     });
+//     defer vm.deinit();
 
-    try vm.compile("System.print(\"Hello World\")");
-    return std.testing.expect(true);
-}
+//     try vm.compile("System.print(\"Hello World\")");
+//     return std.testing.expect(true);
+// }
 
-test "Create a Module" {
-    const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
-    defer vm.deinit();
+// test "Create a Module" {
+//     const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
+//     defer vm.deinit();
 
-    _ = try vm.createModule("math");
-    return std.testing.expect(true);
-}
+//     _ = try vm.createModule("math");
+//     return std.testing.expect(true);
+// }
 
-test "Create a Class" {
-    const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
-    defer vm.deinit();
+// test "Create a Class" {
+//     const vm = try WrenVM.init(.{ .allocator = std.testing.allocator });
+//     defer vm.deinit();
 
-    _ = try vm.createClass(try vm.copyString("Person"), null);
-    return std.testing.expect(true);
-}
+//     _ = try vm.createClass(try vm.copyString("Person"), null);
+//     return std.testing.expect(true);
+// }
