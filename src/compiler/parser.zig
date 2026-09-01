@@ -155,9 +155,6 @@ pub const Parser = struct {
 
     fn property(self: *Parser) ParseError!void {
         try self.consume(.identifier);
-        std.debug.print("property: {s}\n", .{
-            self.previous.start[0..@intCast(self.previous.length)],
-        });
     }
 
     fn call(self: *Parser) ParseError!void {
@@ -169,13 +166,10 @@ pub const Parser = struct {
             }
         }
         try self.consume(.right_param);
-        std.debug.print("call\n", .{});
     }
 
     fn unary(self: *Parser) ParseError!void {
-        const operator = self.previous.type;
         try self.parsePrecedence(.unary);
-        std.debug.print("unary: {any}\n", .{operator});
     }
 
     fn binary(self: *Parser) ParseError!void {
@@ -185,25 +179,18 @@ pub const Parser = struct {
         const next_precedence = precedence.next();
 
         try self.parsePrecedence(next_precedence);
-        std.debug.print("binary: {any}\n", .{operator});
     }
 
     fn number(self: *Parser) void {
-        std.debug.print("number: {s}\n", .{
-            self.previous.start[0..@intCast(self.previous.length)],
-        });
+        _ = self;
     }
 
     fn string(self: *Parser) void {
-        std.debug.print("string: {s}\n", .{
-            self.previous.start[0..@intCast(self.previous.length)],
-        });
+        _ = self;
     }
 
     fn identifier(self: *Parser) void {
-        std.debug.print("identifier: {s}\n", .{
-            self.previous.start[0..@intCast(self.previous.length)],
-        });
+        _ = self;
     }
 
     fn grouping(self: *Parser) ParseError!void {
