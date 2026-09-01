@@ -28,9 +28,11 @@ pub const Configuration = struct {
 
 pub const WrenVM = struct {
     config: Configuration,
+    current_fiber: ?*fiber.ObjFiber = null,
 
     strings: std.ArrayList(*string.ObjString) = .empty,
     modules: std.ArrayList(*module.ObjModule) = .empty,
+    classes: std.ArrayList(*class.ObjClass) = .empty,
 
     pub fn init(config: Configuration) !*WrenVM {
         const vm = try config.allocator.create(WrenVM);
@@ -68,11 +70,18 @@ pub const WrenVM = struct {
                 .is_dark = false,
             },
             .superclass = superclass,
-            .methods = .empty,
+            .methods = .init(self.config.allocator),
             .name = name,
             .attributes = undefined,
         };
+        try self.classes.append(self.config.allocator, current_class);
         return current_class;
+    }
+
+    pub fn getArgument(self: *WrenVM, index: usize) value.Value {
+        const current_fiber = self.current_fiber orelse unreachable;
+        _ = current_fiber;
+        _ = index;
     }
 
     pub fn compile(self: *WrenVM, source: []const u8) !void {
@@ -84,16 +93,23 @@ pub const WrenVM = struct {
 
     pub fn deinit(self: *WrenVM) void {
         const allocator = self.config.allocator;
-        for (self.strings.items) |str| {
-            str.deinit(allocator);
+
+        for (self.classes.items) |cls| {
+            cls.deinit();
+            allocator.destroy(cls);
         }
-        self.strings.deinit(allocator);
+        self.classes.deinit(allocator);
 
         for (self.modules.items) |mod| {
             mod.deinit(allocator);
             allocator.destroy(mod);
         }
         self.modules.deinit(allocator);
+
+        for (self.strings.items) |str| {
+            str.deinit(allocator);
+        }
+        self.strings.deinit(allocator);
 
         allocator.destroy(self);
     }
