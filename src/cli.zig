@@ -36,12 +36,7 @@ fn runProgram(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) v
     };
     defer allocator.free(source);
 
-    const vm = wren.WrenVM.init(.{
-        .allocator = allocator,
-    }) catch {
-        File.stdout().writeStreamingAll(io, "Error while creating the VM\n\n") catch {};
-        return;
-    };
+    var vm = wren.WrenVM.init(.{ .allocator = allocator });
     defer vm.deinit();
 
     vm.compile(source) catch {
