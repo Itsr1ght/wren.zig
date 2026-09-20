@@ -25,11 +25,7 @@ fn runProgram(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) v
             printHelp(io);
             return;
         } else {
-            const msg = std.fmt.allocPrint(
-                allocator,
-                "error: found error while running : {any}\n\n",
-                .{err},
-            ) catch {
+            const msg = std.fmt.allocPrint(allocator, "error: found error while running : {any}\n\n", .{err}) catch {
                 File.stdout().writeStreamingAll(io, "error: cannot allocate memory") catch {};
                 return;
             };

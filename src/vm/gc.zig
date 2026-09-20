@@ -1,1 +1,0 @@
-const GC = struct {};
