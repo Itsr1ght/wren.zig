@@ -51,6 +51,10 @@ const Tokentype = enum {
     questionmark, // ?
     colon, // :
     semicolon, // ;
+    coma, // ,
+    singlequote, // '
+    doublequote, // "
+    underscore, // _
 };
 
 const Token = struct {
