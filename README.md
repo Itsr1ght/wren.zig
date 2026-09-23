@@ -25,3 +25,7 @@ Run the command with below for running the example script
 ```bash
 zig build run -- examples/wren/hello.wren
 ```
+
+```bash
+zig build run -- examples/wren/class.wren
+```
