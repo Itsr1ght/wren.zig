@@ -3,7 +3,8 @@ pub const WrenVM = @import("vm/WrenVM.zig");
 
 pub const Lexer = @import("compiler/Lexer.zig");
 pub const Parser = @import("compiler/Parser.zig");
-pub const symbol_table = @import("compiler/symbol_table.zig");
+pub const SytemTable = @import("compiler/SymbolTable.zig");
+pub const Compiler = @import("compiler/Compiler.zig");
 
 test {
     std.testing.refAllDecls(@This());
