@@ -60,6 +60,7 @@ pub const TokenType = enum {
     character,
     string,
     boolean,
+    eof,
 };
 
 pub const Token = struct {
@@ -74,6 +75,10 @@ data: []const u8,
 pos: usize = 0,
 line: usize = 0,
 
+fn isDigit(c: u8) bool {
+    return c >= '0' and c <= '9';
+}
+
 pub fn init(source: []const u8) Self {
     return .{ .data = source };
 }
@@ -87,7 +92,7 @@ fn peek(self: *Self) u8 {
     return self.data[self.pos];
 }
 
-fn advance(self: Self) u8 {
+fn advance(self: *Self) u8 {
     const c = self.peek();
     self.pos += 1;
     return c;
@@ -107,18 +112,45 @@ fn skipWhiteSpace(self: *Self) void {
     }
 }
 
-pub fn nextToken(self: *Self) Token {
+fn number(self: *Self) Token {
+    const start = self.pos;
+    while (isDigit(self.peek())) {
+        _ = self.advance();
+    }
+
+    return .{
+        .token_type = .number,
+        .start = self.data.ptr + start,
+        .length = self.pos - start,
+        .line = self.line,
+    };
+}
+
+pub fn nextToken(self: *Self) !Token {
     self.skipWhiteSpace();
+    if (self.isAtEnd()) {
+        return .{
+            .token_type = .eof,
+            .line = self.line,
+            .length = 0,
+            .start = self.data.ptr + self.pos,
+        };
+    }
+
+    const c = self.peek();
+    if (isDigit(c)) {
+        return self.number();
+    }
+
+    return error.UnHandledCharacter;
 }
 
 const std = @import("std");
 
-test "Parse a character" {
-    var lexer = Self.init("a");
-    const token = lexer.nextToken();
-    if (token.token_type == .character) {
-        try std.testing.expect(true);
-    } else {
-        try std.testing.expect(true);
-    }
+test "Parse a Number" {
+    var lexer = Self.init("222");
+    const token = try lexer.nextToken();
+
+    try std.testing.expectEqual(token.token_type, TokenType.number);
+    try std.testing.expectEqualStrings("222", token.start[0..token.length]);
 }
