@@ -92,6 +92,11 @@ fn peek(self: *Self) u8 {
     return self.data[self.pos];
 }
 
+fn peekNext(self: *Self) u8 {
+    if (self.pos + 1 >= self.data.len) return 0;
+    return self.data[self.pos + 1];
+}
+
 fn advance(self: *Self) u8 {
     const c = self.peek();
     self.pos += 1;
@@ -116,6 +121,13 @@ fn number(self: *Self) Token {
     const start = self.pos;
     while (isDigit(self.peek())) {
         _ = self.advance();
+    }
+
+    if (self.peek() == '.' and isDigit(self.peekNext())) {
+        _ = self.advance();
+        while (isDigit(self.peek())) {
+            _ = self.advance();
+        }
     }
 
     return .{
@@ -147,10 +159,18 @@ pub fn nextToken(self: *Self) !Token {
 
 const std = @import("std");
 
-test "Parse a Number" {
+test "Parse a Int" {
     var lexer = Self.init("222");
     const token = try lexer.nextToken();
 
     try std.testing.expectEqual(token.token_type, TokenType.number);
     try std.testing.expectEqualStrings("222", token.start[0..token.length]);
+}
+
+test "Parse a Float" {
+    var lexer = Self.init("3.14");
+    const token = try lexer.nextToken();
+
+    try std.testing.expectEqual(token.token_type, TokenType.number);
+    try std.testing.expectEqualStrings("3.14", token.start[0..token.length]);
 }
