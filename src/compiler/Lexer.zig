@@ -24,11 +24,14 @@ pub const TokenType = enum {
     // Precedence and Associativity
     left_bracket, // (
     right_bracket, // )
+    left_brace, // {
+    right_brace, // }
     left_square_bracket, // [
     right_square_bracket, // ]
     dot, // .
-    exclamation, // !
-    tilda, // ~
+    bang, // !
+    bangeql, // !=
+    tilde, // ~
     star, // *
     slash, // /
     percent, // %
@@ -40,26 +43,22 @@ pub const TokenType = enum {
     less_than_equal, // <=
     greater_than, // >
     greater_than_equal, // >=
-    @"and", // &
     caret, // ^
-    @"or", // |
     equal, // =
     equalequal, // ==
     notequal, // !=
-    andand, // &&
-    oror, // ||
+    amp, // &
+    ampamp, // &&
+    pipe, // |
+    pipepipe, // ||
     questionmark, // ?
     colon, // :
-    semicolon, // ;
-    coma, // ,
-    singlequote, // '
+    comma, // ,
     doublequote, // "
-    underscore, // _
     // Types
     identifier,
     number,
     string,
-    boolean,
     eof,
 };
 
@@ -204,8 +203,20 @@ fn identifier(self: *Self) Token {
     };
 }
 
+fn makeToken(self: *Self, token_type: TokenType, start: usize) Token {
+    return .{
+        .token_type = token_type,
+        .start = self.data.ptr + start,
+        .length = self.pos - start,
+        .line = self.line,
+    };
+}
+
 pub fn nextToken(self: *Self) !Token {
     self.skipWhiteSpace();
+
+    const start = self.pos;
+
     if (self.isAtEnd()) {
         return .{
             .token_type = .eof,
@@ -221,67 +232,303 @@ pub fn nextToken(self: *Self) !Token {
     }
     switch (c) {
         '\"' => return try self.string(),
-        else => return self.identifier(),
-    }
+        '+' => {
+            _ = self.advance();
+            return self.makeToken(.plus, start);
+        },
+        '-' => {
+            _ = self.advance();
+            return self.makeToken(.minus, start);
+        },
+        '*' => {
+            _ = self.advance();
+            return self.makeToken(.star, start);
+        },
+        '/' => {
+            _ = self.advance();
 
-    return error.UnHandledCharacter;
+            if (self.peek() == '/') {
+                while (self.peek() != '\n' and !self.isAtEnd()) {
+                    _ = self.advance();
+                }
+                return self.nextToken();
+            }
+
+            if (self.peek() == '*') {
+                _ = self.advance();
+                var depth: usize = 1;
+
+                while (depth > 0 and !self.isAtEnd()) {
+                    if (self.peek() == '/' and self.peekNext() == '*') {
+                        _ = self.advance();
+                        _ = self.advance();
+                        depth += 1;
+                    } else if (self.peek() == '*' and self.peekNext() == '/') {
+                        _ = self.advance();
+                        _ = self.advance();
+                        depth -= 1;
+                    } else {
+                        if (self.peek() == '\n') self.line += 1;
+                        _ = self.advance();
+                    }
+                }
+
+                if (depth > 0) {
+                    return error.UntermicatedComments;
+                }
+
+                return self.nextToken();
+            }
+
+            return self.makeToken(.slash, start);
+        },
+
+        '{' => {
+            _ = self.advance();
+            return self.makeToken(.left_brace, start);
+        },
+
+        '}' => {
+            _ = self.advance();
+            return self.makeToken(.right_brace, start);
+        },
+
+        '(' => {
+            _ = self.advance();
+            return self.makeToken(.left_bracket, start);
+        },
+
+        ')' => {
+            _ = self.advance();
+            return self.makeToken(.right_bracket, start);
+        },
+
+        '[' => {
+            _ = self.advance();
+            return self.makeToken(.left_square_bracket, start);
+        },
+
+        ']' => {
+            _ = self.advance();
+            return self.makeToken(.right_square_bracket, start);
+        },
+        ',' => {
+            _ = self.advance();
+            return self.makeToken(.comma, start);
+        },
+        '%' => {
+            _ = self.advance();
+            return self.makeToken(.percent, start);
+        },
+        '~' => {
+            _ = self.advance();
+            return self.makeToken(.tilde, start);
+        },
+        ':' => {
+            _ = self.advance();
+            return self.makeToken(.colon, start);
+        },
+        '!' => {
+            _ = self.advance();
+            if (self.peek() == '=') {
+                _ = self.advance();
+                return self.makeToken(.bangeql, start);
+            }
+            return self.makeToken(.bang, start);
+        },
+        '&' => {
+            _ = self.advance();
+            if (self.peek() == '&') {
+                _ = self.advance();
+                return self.makeToken(.ampamp, start);
+            }
+            return self.makeToken(.amp, start);
+        },
+        '|' => {
+            _ = self.advance();
+            if (self.peek() == '|') {
+                _ = self.advance();
+                return self.makeToken(.pipepipe, start);
+            }
+            return self.makeToken(.pipe, start);
+        },
+
+        '=' => {
+            _ = self.advance();
+            if (self.peek() == '=') {
+                _ = self.advance();
+                return self.makeToken(.equalequal, start);
+            }
+            return self.makeToken(.equal, start);
+        },
+
+        '.' => {
+            _ = self.advance();
+            if (self.peek() == '.') {
+                _ = self.advance();
+                if (self.peek() == '.') {
+                    _ = self.advance();
+                    return self.makeToken(.dotdotdot, start);
+                }
+                return self.makeToken(.dotdot, start);
+            }
+            return self.makeToken(.dot, start);
+        },
+
+        '>' => {
+            _ = self.advance();
+            if (self.peek() == '=') {
+                _ = self.advance();
+                return self.makeToken(.greater_than_equal, start);
+            }
+            return self.makeToken(.greater_than, start);
+        },
+
+        '<' => {
+            _ = self.advance();
+            if (self.peek() == '=') {
+                _ = self.advance();
+                return self.makeToken(.less_than_equal, start);
+            }
+            return self.makeToken(.less_than, start);
+        },
+
+        else => {
+            if (isAlpha(c)) return self.identifier();
+            if (isDigit(c)) return self.number();
+            return error.UnHandledCharacter;
+        },
+    }
 }
 
 const std = @import("std");
 
-test "Parse a Int" {
+test "Tokenizing a Int" {
     var lexer = Self.init("222");
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.number);
+    try std.testing.expectEqual(TokenType.number, token.token_type);
     try std.testing.expectEqualStrings("222", token.start[0..token.length]);
 }
 
-test "Parse a Float" {
+test "Tokenizing a Float" {
     var lexer = Self.init("3.14");
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.number);
+    try std.testing.expectEqual(TokenType.number, token.token_type);
     try std.testing.expectEqualStrings("3.14", token.start[0..token.length]);
 }
 
-test "Parse a String" {
+test "Tokenizing a String" {
     var lexer = Self.init("\"hello\"");
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.string);
+    try std.testing.expectEqual(TokenType.string, token.token_type);
     try std.testing.expectEqualStrings("hello", token.start[0..token.length]);
 }
 
-test "Parse a multi-line String" {
+test "Tokenizing a multi-line String" {
     var lexer = Self.init(
         \\"
-        \\ Hello World
         \\ Snap back to reality
+        \\ ope, there goes gravity
         \\"
     );
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.string);
+    try std.testing.expectEqual(TokenType.string, token.token_type);
     try std.testing.expectEqualStrings(
         \\
-        \\ Hello World
         \\ Snap back to reality
+        \\ ope, there goes gravity
         \\
     , token.start[0..token.length]);
 }
 
-test "Parse a while" {
+test "Tokenizing a while" {
     var lexer = Self.init("while");
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.@"while");
+    try std.testing.expectEqual(TokenType.@"while", token.token_type);
 }
 
-test "Parse a identifier" {
+test "Tokenizing a identifier" {
     var lexer = Self.init("hello_world");
     const token = try lexer.nextToken();
 
-    try std.testing.expectEqual(token.token_type, TokenType.identifier);
+    try std.testing.expectEqual(TokenType.identifier, token.token_type);
     try std.testing.expectEqualStrings("hello_world", token.start[0..token.length]);
+}
+
+test "Tokenzine the single-line comment" {
+    var lexer = Self.init(
+        \\//Hello World this is comment
+        \\var
+    );
+
+    const token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.@"var", token.token_type);
+}
+
+test "Tokenzing the entire block" {
+    var lexer = Self.init("var hello = \"Hello World\"");
+
+    var token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.@"var", token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.identifier, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.equal, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.string, token.token_type);
+}
+
+test "Tokenzing the Number block" {
+    var lexer = Self.init("(1 * 2) * (3 + 4) / (8 - 2)");
+
+    var token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.left_bracket, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.number, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.star, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.number, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.right_bracket, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.star, token.token_type);
+}
+
+test "Tokenizing the Condition" {
+    var lexer = Self.init("if((3 * 2) >= 2 )");
+
+    var token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.@"if", token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.left_bracket, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.left_bracket, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.number, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.star, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.number, token.token_type);
+
+    token = try lexer.nextToken();
+    try std.testing.expectEqual(TokenType.right_bracket, token.token_type);
 }
