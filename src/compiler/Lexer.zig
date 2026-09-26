@@ -274,7 +274,7 @@ pub fn nextToken(self: *Self) !Token {
                 }
 
                 if (depth > 0) {
-                    return error.UntermicatedComments;
+                    return error.UnterminatedComments;
                 }
 
                 return self.nextToken();
