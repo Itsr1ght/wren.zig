@@ -11,6 +11,7 @@ fn printHelp(io: std.Io) void {
         \\Commands:
         \\
         \\run: run the script
+        \\repl: interpret the script
         \\
         \\General Options:
         \\
@@ -39,10 +40,46 @@ fn runProgram(allocator: std.mem.Allocator, io: std.Io, file_name: []const u8) v
     var vm = wren.WrenVM.init(.{ .allocator = allocator });
     defer vm.deinit();
 
-    vm.compile(source) catch {
-        File.stdout().writeStreamingAll(io, "error: error while compiling\n\n");
+    _ = vm.interpret(source) catch {
+        File.stdout().writeStreamingAll(io, "error: error while compiling\n\n") catch return;
         return;
     };
+}
+
+fn interpretCode(allocator: std.mem.Allocator, io: std.Io) !void {
+    var stdin_buffer: [1024 * 4]u8 = undefined;
+    var stdin_reader = std.Io.File.stdin().reader(io, &stdin_buffer);
+
+    var stdout_buffer: [1024 * 4]u8 = undefined;
+    var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buffer);
+
+    const stdin = &stdin_reader.interface;
+    const stdout = &stdout_writer.interface;
+
+    var vm = wren.WrenVM.init(.{
+        .allocator = allocator,
+    });
+    while (true) {
+        try stdout.print(">", .{});
+        try stdout.flush();
+
+        const line = stdin.takeDelimiterExclusive('\n') catch return;
+        _ = stdin.takeByte() catch {};
+
+        if (line.len == 0) continue;
+        if (std.mem.eql(u8, line, "exit")) {
+            return;
+        }
+
+        const result = vm.interpret(line) catch |err| {
+            try stdout.print("error : {}\n", .{err});
+            try stdout.flush();
+            continue;
+        };
+
+        try stdout.print("{}\n", .{result});
+        try stdout.flush();
+    }
 }
 
 pub fn main(init: std.process.Init) !void {
@@ -64,6 +101,10 @@ pub fn main(init: std.process.Init) !void {
             } else {
                 File.stdout().writeStreamingAll(init.io, "error: provide file\n\n") catch {};
             }
+        }
+
+        if (std.mem.eql(u8, arg, "repl")) {
+            return try interpretCode(init.gpa, init.io);
         }
     } else {
         printHelp(init.io);
