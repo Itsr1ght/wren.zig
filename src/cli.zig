@@ -59,6 +59,8 @@ fn interpretCode(allocator: std.mem.Allocator, io: std.Io) !void {
     var vm = wren.WrenVM.init(.{
         .allocator = allocator,
     });
+    defer vm.deinit();
+
     while (true) {
         try stdout.print(">", .{});
         try stdout.flush();

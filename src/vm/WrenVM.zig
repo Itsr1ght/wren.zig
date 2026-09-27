@@ -12,21 +12,25 @@ pub const Configuration = struct {
 const Self = @This();
 
 config: Configuration,
+globals: std.StringHashMap(f64),
 
 pub fn init(config: Configuration) Self {
-    return .{ .config = config };
+    return .{ .config = config, .globals = .init(config.allocator) };
 }
 
 pub fn deinit(self: *Self) void {
-    _ = self;
+    var it = self.globals.keyIterator();
+    while (it.next()) |key| {
+        self.config.allocator.free(key.*);
+    }
+    self.globals.deinit();
 }
 
 pub fn interpret(self: *Self, source: []const u8) !f64 {
-    _ = self;
     var lexer = Lexer.init(source);
-    var parser = try Parser.init(&lexer);
+    var parser = try Parser.init(self.config.allocator, &lexer, &self.globals);
 
-    return parser.parseExpression();
+    return parser.parseStatement();
 }
 
 test "interpret a number" {
