@@ -35,7 +35,7 @@ pub fn interpret(self: *Self, source: []const u8) !Value {
     var lexer = Lexer.init(source);
     var parser = try Parser.init(self.config.allocator, &lexer, &self.globals);
 
-    return parser.parseStatement();
+    return parser.parseProgram();
 }
 
 test "interpret a number" {
@@ -57,5 +57,19 @@ test "interpret addition" {
 
     const result = try vm.interpret("5 + 5");
 
+    try std.testing.expectEqual(@as(f64, 10), result.num);
+}
+
+test "program with multiple statements" {
+    var vm = Self.init(.{ .allocator = std.testing.allocator });
+    defer vm.deinit();
+
+    const source =
+        \\var a = 5
+        \\var b = 5
+        \\a + b
+    ;
+
+    const result = try vm.interpret(source);
     try std.testing.expectEqual(@as(f64, 10), result.num);
 }

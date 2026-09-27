@@ -773,3 +773,28 @@ test "not the string" {
     const result = try parser.parseStatement();
     try std.testing.expectEqual(false, result.bool);
 }
+
+test "program with multiple statements" {
+    var lexer = Lexer.init(
+        \\var a = 1
+        \\var b = 2
+        \\a + b
+    );
+    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    defer {
+        var it = map.iterator();
+        while (it.next()) |entry| {
+            std.testing.allocator.free(entry.key_ptr.*);
+            switch (entry.value_ptr.*) {
+                .str => |s| std.testing.allocator.free(s),
+                else => {},
+            }
+        }
+        map.deinit();
+    }
+
+    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+
+    const result = try parser.parseProgram();
+    try std.testing.expectEqual(@as(f64, 3), result.num);
+}
