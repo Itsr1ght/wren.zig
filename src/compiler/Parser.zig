@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const Value = @import("../vm/value.zig").Value;
 const Lexer = @import("Lexer.zig");
 const TokenType = Lexer.TokenType;
 const Token = Lexer.Token;
@@ -7,7 +8,7 @@ const Token = Lexer.Token;
 const Self = @This();
 lexer: *Lexer,
 current: Token,
-globals: *std.StringHashMap(f64),
+globals: *std.StringHashMap(Value),
 allocator: std.mem.Allocator,
 
 const ParseError = error{
@@ -21,9 +22,10 @@ const ParseError = error{
     UndefinedVariable,
     StringEnd,
     AlreadyExist,
+    TypeMismatch,
 } || std.mem.Allocator.Error;
 
-pub fn init(allocator: std.mem.Allocator, lexer: *Lexer, globals: *std.StringHashMap(f64)) !Self {
+pub fn init(allocator: std.mem.Allocator, lexer: *Lexer, globals: *std.StringHashMap(Value)) !Self {
     var self: Self = .{
         .lexer = lexer,
         .current = undefined,
@@ -34,17 +36,18 @@ pub fn init(allocator: std.mem.Allocator, lexer: *Lexer, globals: *std.StringHas
     return self;
 }
 
-pub fn parseNumber(self: *Self) ParseError!f64 {
+pub fn parseNumber(self: *Self) ParseError!Value {
     if (self.current.token_type != .number) {
         return ParseError.ExpectedNumber;
     }
     const text = self.current.start[0..self.current.length];
 
     self.current = try self.lexer.nextToken();
-    return std.fmt.parseFloat(f64, text);
+
+    return .{ .num = try std.fmt.parseFloat(f64, text) };
 }
 
-pub fn parseStatement(self: *Self) ParseError!f64 {
+pub fn parseStatement(self: *Self) ParseError!Value {
     if (self.current.token_type == .@"var") {
         self.current = try self.lexer.nextToken();
 
@@ -58,7 +61,11 @@ pub fn parseStatement(self: *Self) ParseError!f64 {
         if (self.current.token_type != .equal) return ParseError.ExpectedEquals;
         self.current = try self.lexer.nextToken();
 
-        const value = try self.parseExpression();
+        const value: Value = switch (self.current.token_type) {
+            .number => try self.parseExpression(),
+            .string => .{ .str = try self.allocator.dupe(u8, self.current.start[0..self.current.length]) },
+            else => return ParseError.UnHandledCharacter,
+        };
 
         const owned_name = try self.allocator.dupe(u8, name);
         try self.globals.put(owned_name, value);
@@ -75,10 +82,26 @@ pub fn parseStatement(self: *Self) ParseError!f64 {
         const possibly_equal = try self.lexer.nextToken();
         if (possibly_equal.token_type == .equal) {
             self.current = try self.lexer.nextToken();
-            const value = try self.parseExpression();
+            const value: Value = switch (self.current.token_type) {
+                .number => try self.parseExpression(),
+                .string => blk: {
+                    const text = self.current.start[0..self.current.length];
+                    self.current = try self.lexer.nextToken();
+                    break :blk .{ .str = try self.allocator.dupe(u8, text) };
+                },
+                else => return ParseError.UnHandledCharacter,
+            };
             if (!self.globals.contains(name)) {
                 return error.UndefinedVariable;
             }
+
+            if (self.globals.get(name)) |old_value| {
+                switch (old_value) {
+                    .num => {},
+                    .str => |s| self.allocator.free(s),
+                }
+            }
+
             self.globals.put(name, value) catch return ParseError.OutOfMemory;
             return value;
         }
@@ -89,7 +112,7 @@ pub fn parseStatement(self: *Self) ParseError!f64 {
     return self.parseExpression();
 }
 
-fn parsePrimary(self: *Self) ParseError!f64 {
+fn parsePrimary(self: *Self) ParseError!Value {
     if (self.current.token_type == .left_bracket) {
         self.current = try self.lexer.nextToken();
         const value = try self.parseExpression();
@@ -107,50 +130,61 @@ fn parsePrimary(self: *Self) ParseError!f64 {
         return value;
     }
 
+    if (self.current.token_type == .string) {
+        const text = self.current.start[0..self.current.length];
+        self.current = try self.lexer.nextToken();
+        return .{ .str = text };
+    }
+
     return self.parseNumber();
 }
 
-fn parseUnary(self: *Self) ParseError!f64 {
+fn parseUnary(self: *Self) ParseError!Value {
     if (self.current.token_type == .minus) {
         self.current = try self.lexer.nextToken();
+        if (self.current.token_type != .number) return ParseError.ExpectedNumber;
         const value = try self.parseUnary();
-        return -value;
+        return .{ .num = -value.num };
     }
     return self.parsePrimary();
 }
 
-fn parseTerm(self: *Self) ParseError!f64 {
+fn parseTerm(self: *Self) ParseError!Value {
     var left = try self.parseUnary();
     while (true) {
         switch (self.current.token_type) {
             .star => {
                 self.current = try self.lexer.nextToken();
-                const right = try self.parsePrimary();
-                left = left * right;
+                const right = try self.parseUnary();
+                if (left != .num or right != .num) return error.TypeMismatch;
+                left.num = left.num * right.num;
             },
             .slash => {
                 self.current = try self.lexer.nextToken();
-                const right = try self.parsePrimary();
-                left = left / right;
+                const right = try self.parseUnary();
+                if (left != .num or right != .num) return error.TypeMismatch;
+                left.num = left.num / right.num;
             },
             else => return left,
         }
     }
 }
 
-pub fn parseExpression(self: *Self) ParseError!f64 {
+pub fn parseExpression(self: *Self) ParseError!Value {
     var left = try self.parseTerm();
     while (true) {
         switch (self.current.token_type) {
             .plus => {
                 self.current = try self.lexer.nextToken();
-                const right = try self.parseTerm();
-                left = left + right;
+                const right = try self.parseUnary();
+                if (left != .num or right != .num) return error.TypeMismatch;
+                left = .{ .num = left.num + right.num };
             },
             .minus => {
                 self.current = try self.lexer.nextToken();
-                const right = try self.parseTerm();
-                left = left - right;
+                const right = try self.parseUnary();
+                if (left != .num or right != .num) return error.TypeMismatch;
+                left = .{ .num = left.num - right.num };
             },
             else => return left,
         }
@@ -281,4 +315,16 @@ test "Advance minus calculation" {
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 2), result);
+}
+
+test "String test" {
+    var lexer = Lexer.init(
+        \\var name = "John"
+        \\name
+    );
+    var map = std.StringHashMap(f64).init(std.testing.allocator);
+    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+
+    const result = try parser.parseExpression();
+    try std.testing.expectEqualStrings("John", result);
 }

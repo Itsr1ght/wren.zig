@@ -79,7 +79,10 @@ fn interpretCode(allocator: std.mem.Allocator, io: std.Io) !void {
             continue;
         };
 
-        try stdout.print("{}\n", .{result});
+        switch (result) {
+            .num => try stdout.print("{}\n", .{result.num}),
+            .str => try stdout.print("{s}\n", .{result.str}),
+        }
         try stdout.flush();
     }
 }
