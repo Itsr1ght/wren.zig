@@ -61,14 +61,15 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         if (self.current.token_type != .equal) return ParseError.ExpectedEquals;
         self.current = try self.lexer.nextToken();
 
-        const value: Value = switch (self.current.token_type) {
-            .number => try self.parseExpression(),
-            .string => .{ .str = try self.allocator.dupe(u8, self.current.start[0..self.current.length]) },
-            else => return ParseError.UnHandledCharacter,
+        const value: Value = try self.parseExpression();
+
+        const owned_value: Value = switch (value) {
+            .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
+            .num => value,
         };
 
         const owned_name = try self.allocator.dupe(u8, name);
-        try self.globals.put(owned_name, value);
+        try self.globals.put(owned_name, owned_value);
 
         return value;
     }
@@ -82,15 +83,9 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         const possibly_equal = try self.lexer.nextToken();
         if (possibly_equal.token_type == .equal) {
             self.current = try self.lexer.nextToken();
-            const value: Value = switch (self.current.token_type) {
-                .number => try self.parseExpression(),
-                .string => blk: {
-                    const text = self.current.start[0..self.current.length];
-                    self.current = try self.lexer.nextToken();
-                    break :blk .{ .str = try self.allocator.dupe(u8, text) };
-                },
-                else => return ParseError.UnHandledCharacter,
-            };
+
+            const value: Value = try self.parseExpression();
+
             if (!self.globals.contains(name)) {
                 return error.UndefinedVariable;
             }
@@ -102,7 +97,12 @@ pub fn parseStatement(self: *Self) ParseError!Value {
                 }
             }
 
-            self.globals.put(name, value) catch return ParseError.OutOfMemory;
+            const owned_value: Value = switch (value) {
+                .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
+                .num => value,
+            };
+
+            self.globals.put(name, owned_value) catch return ParseError.OutOfMemory;
             return value;
         }
         self.lexer.pos = saved_pos;
