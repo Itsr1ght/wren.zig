@@ -25,7 +25,7 @@ pub fn deinit(self: *Self) void {
         self.config.allocator.free(entry.key_ptr.*);
         switch (entry.value_ptr.*) {
             .str => |s| self.config.allocator.free(s),
-            .num => {},
+            .num, .bool => {},
         }
     }
     self.globals.deinit();

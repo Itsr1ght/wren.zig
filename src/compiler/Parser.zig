@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Value = @import("../vm/value.zig").Value;
+const ValueType = @import("../vm/value.zig").ValueType;
 const Lexer = @import("Lexer.zig");
 const TokenType = Lexer.TokenType;
 const Token = Lexer.Token;
@@ -23,6 +24,7 @@ const ParseError = error{
     StringEnd,
     AlreadyExist,
     TypeMismatch,
+    UnExpectedComparison,
 } || std.mem.Allocator.Error;
 
 pub fn init(allocator: std.mem.Allocator, lexer: *Lexer, globals: *std.StringHashMap(Value)) !Self {
@@ -65,7 +67,7 @@ pub fn parseStatement(self: *Self) ParseError!Value {
 
         const owned_value: Value = switch (value) {
             .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
-            .num => value,
+            .num, .bool => value,
         };
 
         const owned_name = try self.allocator.dupe(u8, name);
@@ -84,7 +86,7 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         if (possibly_equal.token_type == .equal) {
             self.current = try self.lexer.nextToken();
 
-            const value: Value = try self.parseExpression();
+            const value: Value = try self.parseEquality();
 
             if (!self.globals.contains(name)) {
                 return error.UndefinedVariable;
@@ -92,14 +94,14 @@ pub fn parseStatement(self: *Self) ParseError!Value {
 
             if (self.globals.get(name)) |old_value| {
                 switch (old_value) {
-                    .num => {},
+                    .num, .bool => {},
                     .str => |s| self.allocator.free(s),
                 }
             }
 
             const owned_value: Value = switch (value) {
                 .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
-                .num => value,
+                .num, .bool => value,
             };
 
             self.globals.put(name, owned_value) catch return ParseError.OutOfMemory;
@@ -109,7 +111,66 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         self.lexer.line = saved_line;
     }
 
-    return self.parseExpression();
+    return self.parseEquality();
+}
+
+fn parseComparison(self: *Self) ParseError!Value {
+    var left = try self.parseExpression();
+    while (true) {
+        switch (self.current.token_type) {
+            .less_than => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseExpression();
+                if (left != .num or right != .num) return ParseError.TypeMismatch;
+                const cmp = left.num < right.num;
+                left = .{ .bool = cmp };
+            },
+            .greater_than => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseExpression();
+                if (left != .num or right != .num) return ParseError.TypeMismatch;
+                const cmp = left.num > right.num;
+                left = .{ .bool = cmp };
+            },
+            .less_than_equal => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseExpression();
+                if (left != .num or right != .num) return ParseError.TypeMismatch;
+                const cmp = left.num <= right.num;
+                left = .{ .bool = cmp };
+            },
+            .greater_than_equal => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseExpression();
+                if (left != .num or right != .num) return ParseError.TypeMismatch;
+                const cmp = left.num >= right.num;
+                left = .{ .bool = cmp };
+            },
+            else => return left,
+        }
+    }
+}
+
+fn parseEquality(self: *Self) ParseError!Value {
+    var left = try self.parseComparison();
+
+    while (true) {
+        switch (self.current.token_type) {
+            .equalequal => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseComparison();
+                const cmp = Value.valuesEqual(left, right);
+                left = .{ .bool = cmp };
+            },
+            .bangeql => {
+                self.current = try self.lexer.nextToken();
+                const right = try self.parseComparison();
+                const cmp = Value.valuesEqual(left, right);
+                left = .{ .bool = !cmp };
+            },
+            else => return left,
+        }
+    }
 }
 
 fn parsePrimary(self: *Self) ParseError!Value {
@@ -134,6 +195,16 @@ fn parsePrimary(self: *Self) ParseError!Value {
         const text = self.current.start[0..self.current.length];
         self.current = try self.lexer.nextToken();
         return .{ .str = text };
+    }
+
+    if (self.current.token_type == .true) {
+        self.current = try self.lexer.nextToken();
+        return .{ .bool = true };
+    }
+
+    if (self.current.token_type == .false) {
+        self.current = try self.lexer.nextToken();
+        return .{ .bool = false };
     }
 
     return self.parseNumber();
