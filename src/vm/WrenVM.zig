@@ -46,7 +46,7 @@ test "interpret a number" {
 
     const result = try vm.interpret("42");
 
-    try std.testing.expectEqual(@as(f64, 42), result);
+    try std.testing.expectEqual(@as(f64, 42), result.num);
 }
 
 test "interpret addition" {
@@ -57,5 +57,5 @@ test "interpret addition" {
 
     const result = try vm.interpret("5 + 5");
 
-    try std.testing.expectEqual(@as(f64, 10), result);
+    try std.testing.expectEqual(@as(f64, 10), result.num);
 }
