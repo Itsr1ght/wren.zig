@@ -2,6 +2,7 @@ const std = @import("std");
 
 const Value = @import("../vm/value.zig").Value;
 const ValueType = @import("../vm/value.zig").ValueType;
+const Runtime = @import("../vm/Runtime.zig");
 const Lexer = @import("Lexer.zig");
 const TokenType = Lexer.TokenType;
 const Token = Lexer.Token;
@@ -9,8 +10,7 @@ const Token = Lexer.Token;
 const Self = @This();
 lexer: *Lexer,
 current: Token,
-globals: *std.StringHashMap(Value),
-allocator: std.mem.Allocator,
+runtime: *Runtime,
 
 const ParseError = error{
     ExpectedNumber,
@@ -27,12 +27,11 @@ const ParseError = error{
     UnExpectedComparison,
 } || std.mem.Allocator.Error;
 
-pub fn init(allocator: std.mem.Allocator, lexer: *Lexer, globals: *std.StringHashMap(Value)) !Self {
+pub fn init(runtime: *Runtime, lexer: *Lexer) !Self {
     var self: Self = .{
         .lexer = lexer,
         .current = undefined,
-        .allocator = allocator,
-        .globals = globals,
+        .runtime = runtime,
     };
     self.current = try self.lexer.nextToken();
     return self;
@@ -56,7 +55,7 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         if (self.current.token_type != .identifier) return ParseError.ExpectedIdentifer;
         const name = self.current.start[0..self.current.length];
 
-        if (self.globals.contains(name)) return ParseError.AlreadyExist;
+        if (self.runtime.globals.contains(name)) return ParseError.AlreadyExist;
 
         self.current = try self.lexer.nextToken();
 
@@ -66,12 +65,12 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         const value: Value = try self.parseExpression();
 
         const owned_value: Value = switch (value) {
-            .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
+            .str => |s| .{ .str = try self.runtime.allocator.dupe(u8, s) },
             .num, .bool => value,
         };
 
-        const owned_name = try self.allocator.dupe(u8, name);
-        try self.globals.put(owned_name, owned_value);
+        const owned_name = try self.runtime.allocator.dupe(u8, name);
+        try self.runtime.globals.put(owned_name, owned_value);
 
         return value;
     }
@@ -88,23 +87,23 @@ pub fn parseStatement(self: *Self) ParseError!Value {
 
             const value: Value = try self.parseEquality();
 
-            if (!self.globals.contains(name)) {
+            if (!self.runtime.globals.contains(name)) {
                 return error.UndefinedVariable;
             }
 
-            if (self.globals.get(name)) |old_value| {
+            if (self.runtime.globals.get(name)) |old_value| {
                 switch (old_value) {
                     .num, .bool => {},
-                    .str => |s| self.allocator.free(s),
+                    .str => |s| self.runtime.allocator.free(s),
                 }
             }
 
             const owned_value: Value = switch (value) {
-                .str => |s| .{ .str = try self.allocator.dupe(u8, s) },
+                .str => |s| .{ .str = try self.runtime.allocator.dupe(u8, s) },
                 .num, .bool => value,
             };
 
-            self.globals.put(name, owned_value) catch return ParseError.OutOfMemory;
+            self.runtime.globals.put(name, owned_value) catch return ParseError.OutOfMemory;
             return value;
         }
         self.lexer.pos = saved_pos;
@@ -186,7 +185,7 @@ fn parsePrimary(self: *Self) ParseError!Value {
 
     if (self.current.token_type == .identifier) {
         const name = self.current.start[0..self.current.length];
-        const value = self.globals.get(name) orelse return error.UndefinedVariable;
+        const value = self.runtime.globals.get(name) orelse return error.UndefinedVariable;
         self.current = try self.lexer.nextToken();
         return value;
     }
@@ -227,14 +226,12 @@ fn parseTerm(self: *Self) ParseError!Value {
             .star => {
                 self.current = try self.lexer.nextToken();
                 const right = try self.parseUnary();
-                if (left != .num or right != .num) return error.TypeMismatch;
-                left.num = left.num * right.num;
+                left = try Value.multiplyValues(left, right);
             },
             .slash => {
                 self.current = try self.lexer.nextToken();
                 const right = try self.parseUnary();
-                if (left != .num or right != .num) return error.TypeMismatch;
-                left.num = left.num / right.num;
+                left = try Value.divideValues(left, right);
             },
             else => return left,
         }
@@ -248,14 +245,12 @@ pub fn parseExpression(self: *Self) ParseError!Value {
             .plus => {
                 self.current = try self.lexer.nextToken();
                 const right = try self.parseTerm();
-                if (left != .num or right != .num) return error.TypeMismatch;
-                left = .{ .num = left.num + right.num };
+                left = try Value.addValues(self.runtime, left, right);
             },
             .minus => {
                 self.current = try self.lexer.nextToken();
                 const right = try self.parseTerm();
-                if (left != .num or right != .num) return error.TypeMismatch;
-                left = .{ .num = left.num - right.num };
+                left = try Value.subValues(left, right);
             },
             else => return left,
         }

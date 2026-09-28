@@ -2,6 +2,7 @@ const std = @import("std");
 const utils = @import("../utils/default.zig");
 
 const Value = @import("value.zig").Value;
+const Runtime = @import("Runtime.zig");
 const Lexer = @import("../compiler/Lexer.zig");
 const Parser = @import("../compiler/Parser.zig");
 
@@ -13,27 +14,22 @@ pub const Configuration = struct {
 const Self = @This();
 
 config: Configuration,
-globals: std.StringHashMap(Value),
+runtime: Runtime,
 
 pub fn init(config: Configuration) Self {
-    return .{ .config = config, .globals = .init(config.allocator) };
+    return .{
+        .config = config,
+        .runtime = .init(config.allocator),
+    };
 }
 
 pub fn deinit(self: *Self) void {
-    var it = self.globals.iterator();
-    while (it.next()) |entry| {
-        self.config.allocator.free(entry.key_ptr.*);
-        switch (entry.value_ptr.*) {
-            .str => |s| self.config.allocator.free(s),
-            .num, .bool => {},
-        }
-    }
-    self.globals.deinit();
+    self.runtime.deinit();
 }
 
 pub fn interpret(self: *Self, source: []const u8) !Value {
     var lexer = Lexer.init(source);
-    var parser = try Parser.init(self.config.allocator, &lexer, &self.globals);
+    var parser = try Parser.init(&self.runtime, &lexer);
 
     return parser.parseProgram();
 }
