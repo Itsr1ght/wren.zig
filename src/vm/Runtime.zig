@@ -18,12 +18,11 @@ pub fn deinit(self: *Self) void {
     for (self.strings.items) |s| self.allocator.free(s);
     self.strings.deinit(self.allocator);
 
-    var it = self.globals.iterator();
-    while (it.next()) |entry| {
-        self.allocator.free(entry.key_ptr.*);
-        switch (entry.value_ptr.*) {
+    var iterator = self.globals.iterator();
+    while (iterator.next()) |g| {
+        switch (g.value_ptr.*) {
             .str => |s| self.allocator.free(s),
-            .num, .bool => {},
+            .bool, .num => {},
         }
     }
 }
@@ -34,4 +33,13 @@ pub fn track(self: *Self, text: []const u8) ![]const u8 {
         return err;
     };
     return text;
+}
+
+pub fn dupe(self: *Self, text: []const u8) ![]const u8 {
+    const string = try self.allocator.dupe(u8, text);
+    self.strings.append(self.allocator, string) catch |err| {
+        self.allocator.free(string);
+        return err;
+    };
+    return string;
 }

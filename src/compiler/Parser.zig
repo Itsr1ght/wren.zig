@@ -65,11 +65,11 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         const value: Value = try self.parseExpression();
 
         const owned_value: Value = switch (value) {
-            .str => |s| .{ .str = try self.runtime.allocator.dupe(u8, s) },
+            .str => |s| .{ .str = try self.runtime.dupe(s) },
             .num, .bool => value,
         };
 
-        const owned_name = try self.runtime.allocator.dupe(u8, name);
+        const owned_name = try self.runtime.dupe(name);
         try self.runtime.globals.put(owned_name, owned_value);
 
         return value;
@@ -99,7 +99,7 @@ pub fn parseStatement(self: *Self) ParseError!Value {
             }
 
             const owned_value: Value = switch (value) {
-                .str => |s| .{ .str = try self.runtime.allocator.dupe(u8, s) },
+                .str => |s| .{ .str = try self.runtime.dupe(s) },
                 .num, .bool => value,
             };
 
@@ -267,20 +267,11 @@ pub fn parseProgram(self: *Self) ParseError!Value {
 
 test "Parse a number" {
     var lexer = Lexer.init("45");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 45), result.num);
@@ -288,20 +279,11 @@ test "Parse a number" {
 
 test "Parse addition" {
     var lexer = Lexer.init("10 + 5");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 15), result.num);
@@ -309,20 +291,10 @@ test "Parse addition" {
 
 test "Parse substraction" {
     var lexer = Lexer.init("45 - 10");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 35), result.num);
@@ -330,20 +302,11 @@ test "Parse substraction" {
 
 test "Parse multiplication" {
     var lexer = Lexer.init("4 * 4");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 16), result.num);
@@ -351,20 +314,11 @@ test "Parse multiplication" {
 
 test "Parse division" {
     var lexer = Lexer.init("10/2");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 5), result.num);
@@ -372,20 +326,10 @@ test "Parse division" {
 
 test "chained expression" {
     var lexer = Lexer.init("1 + 2 + 3");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(@as(f64, 6), result.num);
@@ -393,20 +337,10 @@ test "chained expression" {
 
 test "chained expression with multiply" {
     var lexer = Lexer.init("1 * 2 + 3");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 5), result.num);
@@ -414,20 +348,10 @@ test "chained expression with multiply" {
 
 test "chained expression with divide" {
     var lexer = Lexer.init("5 * 2 / 5");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 2), result.num);
@@ -435,20 +359,10 @@ test "chained expression with divide" {
 
 test "chained expression - special case" {
     var lexer = Lexer.init("2 + 3 * 4");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 14), result.num);
@@ -456,20 +370,10 @@ test "chained expression - special case" {
 
 test "chained expression - first multi" {
     var lexer = Lexer.init("2 * 3 + 4");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 10), result.num);
@@ -477,20 +381,10 @@ test "chained expression - first multi" {
 
 test "expression with braces - 1" {
     var lexer = Lexer.init("(2 * 3) + 4");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(@as(f64, 10), result.num);
@@ -498,21 +392,11 @@ test "expression with braces - 1" {
 
 test "expression with braces - 2" {
     var lexer = Lexer.init("2 * (3 + 4)");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(@as(f64, 14), result.num);
@@ -520,20 +404,10 @@ test "expression with braces - 2" {
 
 test "Parse unary" {
     var lexer = Lexer.init("-1 + 2");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseExpression();
     try std.testing.expectEqual(@as(f64, 1), result.num);
@@ -541,21 +415,11 @@ test "Parse unary" {
 
 test "Advance minus calculation" {
     var lexer = Lexer.init("(-1 * 2) + (2 * 2)");
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
 
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(@as(f64, 2), result.num);
@@ -566,20 +430,11 @@ test "String test" {
         \\var name = "John"
         \\name
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqualStrings("John", result.str);
@@ -589,20 +444,11 @@ test "testing bool" {
     var lexer = Lexer.init(
         \\true
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
@@ -612,20 +458,11 @@ test "comparing bool" {
     var lexer = Lexer.init(
         \\true==true
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
@@ -635,20 +472,11 @@ test "comparing number" {
     var lexer = Lexer.init(
         \\20==20
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
@@ -658,20 +486,11 @@ test "comparing number - 2" {
     var lexer = Lexer.init(
         \\20==10
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(false, result.bool);
@@ -681,20 +500,11 @@ test "greater than test" {
     var lexer = Lexer.init(
         \\20>10
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
@@ -704,21 +514,11 @@ test "less than test" {
     var lexer = Lexer.init(
         \\10<20
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
+    var parser = try Self.init(&runtime, &lexer);
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
 }
@@ -727,20 +527,10 @@ test "string comparison" {
     var lexer = Lexer.init(
         \\"Hello"=="Hello"
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(true, result.bool);
@@ -750,20 +540,11 @@ test "not the string" {
     var lexer = Lexer.init(
         \\"Hello"!="Hello"
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseStatement();
     try std.testing.expectEqual(false, result.bool);
@@ -775,20 +556,11 @@ test "program with multiple statements" {
         \\var b = 2
         \\a + b
     );
-    var map = std.StringHashMap(Value).init(std.testing.allocator);
-    defer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            std.testing.allocator.free(entry.key_ptr.*);
-            switch (entry.value_ptr.*) {
-                .str => |s| std.testing.allocator.free(s),
-                else => {},
-            }
-        }
-        map.deinit();
-    }
 
-    var parser = try Self.init(std.testing.allocator, &lexer, &map);
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
 
     const result = try parser.parseProgram();
     try std.testing.expectEqual(@as(f64, 3), result.num);
