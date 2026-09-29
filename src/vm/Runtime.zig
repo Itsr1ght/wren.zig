@@ -17,6 +17,7 @@ pub fn init(allocator: std.mem.Allocator) Self {
 pub fn deinit(self: *Self) void {
     for (self.strings.items) |s| self.allocator.free(s);
     self.strings.deinit(self.allocator);
+    defer self.globals.deinit();
 
     var iterator = self.globals.iterator();
     while (iterator.next()) |g| {
