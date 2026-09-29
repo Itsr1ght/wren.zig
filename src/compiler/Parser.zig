@@ -37,6 +37,19 @@ pub fn init(runtime: *Runtime, lexer: *Lexer) !Self {
     return self;
 }
 
+pub fn parseBlock(self: *Self) ParseError!Value {
+    self.current = try self.lexer.nextToken();
+    try self.runtime.beginScope();
+    var last: Value = .{ .num = 0 };
+    while (self.current.token_type != .right_brace) {
+        if (self.current.token_type == .eof) return ParseError.UnterminatedComments;
+        last = try self.parseStatement();
+    }
+    self.current = try self.lexer.nextToken();
+    self.runtime.endScope();
+    return last;
+}
+
 pub fn parseNumber(self: *Self) ParseError!Value {
     if (self.current.token_type != .number) {
         return ParseError.ExpectedNumber;
@@ -55,7 +68,13 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         if (self.current.token_type != .identifier) return ParseError.ExpectedIdentifer;
         const name = self.current.start[0..self.current.length];
 
-        if (self.runtime.globals.contains(name)) return ParseError.AlreadyExist;
+        const in_local_scope = self.runtime.scopes.items.len > 0;
+        var target = if (in_local_scope)
+            &self.runtime.scopes.items[self.runtime.scopes.items.len - 1]
+        else
+            &self.runtime.globals;
+
+        if (target.contains(name)) return ParseError.AlreadyExist;
 
         self.current = try self.lexer.nextToken();
 
@@ -70,7 +89,7 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         };
 
         const owned_name = try self.runtime.dupe(name);
-        try self.runtime.globals.put(owned_name, owned_value);
+        try target.put(owned_name, owned_value);
 
         return value;
     }
@@ -108,6 +127,10 @@ pub fn parseStatement(self: *Self) ParseError!Value {
         }
         self.lexer.pos = saved_pos;
         self.lexer.line = saved_line;
+    }
+
+    if (self.current.token_type == .left_brace) {
+        return self.parseBlock();
     }
 
     return self.parseEquality();
@@ -564,4 +587,20 @@ test "program with multiple statements" {
 
     const result = try parser.parseProgram();
     try std.testing.expectEqual(@as(f64, 3), result.num);
+}
+
+test "block test" {
+    var lexer = Lexer.init(
+        \\var a = 1
+        \\{a = 2}
+        \\a
+    );
+
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
+
+    const result = try parser.parseProgram();
+    try std.testing.expectEqual(@as(f64, 2), result.num);
 }
