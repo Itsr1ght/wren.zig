@@ -37,6 +37,15 @@ pub fn init(runtime: *Runtime, lexer: *Lexer) !Self {
     return self;
 }
 
+fn resolve(self: *Self, name: []const u8) ?*Value {
+    var i = self.runtime.scopes.items.len;
+    while (i > 0) {
+        i -= 1;
+        if (self.runtime.scopes.items[i].getPtr(name)) |v| return v;
+    }
+    return self.runtime.globals.getPtr(name);
+}
+
 pub fn parseBlock(self: *Self) ParseError!Value {
     self.current = try self.lexer.nextToken();
     try self.runtime.beginScope();
@@ -106,23 +115,14 @@ pub fn parseStatement(self: *Self) ParseError!Value {
 
             const value: Value = try self.parseEquality();
 
-            if (!self.runtime.globals.contains(name)) {
-                return error.UndefinedVariable;
-            }
-
-            if (self.runtime.globals.get(name)) |old_value| {
-                switch (old_value) {
-                    .num, .bool => {},
-                    .str => |s| self.runtime.allocator.free(s),
-                }
-            }
+            const slot = self.resolve(name) orelse return error.UndefinedVariable;
 
             const owned_value: Value = switch (value) {
                 .str => |s| .{ .str = try self.runtime.dupe(s) },
                 .num, .bool => value,
             };
 
-            self.runtime.globals.put(name, owned_value) catch return ParseError.OutOfMemory;
+            slot.* = owned_value;
             return value;
         }
         self.lexer.pos = saved_pos;
@@ -208,7 +208,7 @@ fn parsePrimary(self: *Self) ParseError!Value {
 
     if (self.current.token_type == .identifier) {
         const name = self.current.start[0..self.current.length];
-        const value = self.runtime.globals.get(name) orelse return error.UndefinedVariable;
+        const value = (self.resolve(name) orelse return error.UndefinedVariable).*;
         self.current = try self.lexer.nextToken();
         return value;
     }
