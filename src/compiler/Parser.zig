@@ -25,6 +25,7 @@ const ParseError = error{
     AlreadyExist,
     TypeMismatch,
     UnExpectedComparison,
+    UnterminatedBlock,
 } || std.mem.Allocator.Error;
 
 pub fn init(runtime: *Runtime, lexer: *Lexer) !Self {
@@ -46,6 +47,17 @@ fn resolve(self: *Self, name: []const u8) ?*Value {
     return self.runtime.globals.getPtr(name);
 }
 
+pub fn skipBlock(self: *Self) ParseError!void {
+    self.current = self.lexer.nextToken();
+    var depth: usize = 1;
+    while (depth > 0) {
+        if (self.current.token_type == .eof) return ParseError.UnterminatedBlock;
+        if (self.current.token_type == .left_brace) depth += 1;
+        if (self.current.token_type == .right_brace) depth -= 1;
+        self.current = try self.lexer.nextToken();
+    }
+}
+
 pub fn parseBlock(self: *Self) ParseError!Value {
     self.current = try self.lexer.nextToken();
     try self.runtime.beginScope();
@@ -57,6 +69,10 @@ pub fn parseBlock(self: *Self) ParseError!Value {
     self.current = try self.lexer.nextToken();
     self.runtime.endScope();
     return last;
+}
+
+fn parseIfStatement(self: *Self) ParseError!Value {
+    _ = self;
 }
 
 pub fn parseNumber(self: *Self) ParseError!Value {
@@ -603,4 +619,24 @@ test "block test" {
 
     const result = try parser.parseProgram();
     try std.testing.expectEqual(@as(f64, 2), result.num);
+}
+
+test "multiple blocks" {
+    var lexer = Lexer.init(
+        \\var a = 1
+        \\{a = 2}
+        \\{
+        \\var b = 2
+        \\a = a + b
+        \\}
+        \\a
+    );
+
+    var runtime = Runtime.init(std.testing.allocator);
+    defer runtime.deinit();
+
+    var parser = try Self.init(&runtime, &lexer);
+
+    const result = try parser.parseProgram();
+    try std.testing.expectEqual(@as(f64, 4), result.num);
 }

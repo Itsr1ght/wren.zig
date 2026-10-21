@@ -28,6 +28,7 @@ pub fn build(b: *std.Build) void {
     b.installArtifact(executable);
 
     const run_exec = b.addRunArtifact(executable);
+    run_exec.addPassthruArgs();
 
     const test_executable = b.addTest(.{
         .root_module = wren_lib,
@@ -36,11 +37,7 @@ pub fn build(b: *std.Build) void {
     });
 
     const run_test = b.addRunArtifact(test_executable);
-
-    if (b.args) |args| {
-        run_exec.addArgs(args);
-        run_test.addArgs(args);
-    }
+    run_test.addPassthruArgs();
 
     const run_step = b.step("run", "Run the Wren cli");
     run_step.dependOn(&run_exec.step);
